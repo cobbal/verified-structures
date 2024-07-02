@@ -45,4 +45,3 @@ time-of-build-both.log
 time-of-build-pretty.log
 
 # Not directly coq-related
-.nix
