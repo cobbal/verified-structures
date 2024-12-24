@@ -5,13 +5,19 @@ type Id = string
 [<RequireQualifiedAccess>]
 type Ty =
     | Var of Id
+    | App of tyName : Id * tyArgs : Ty list
     | Int
     | Bool
     | Tuple of Ty list
-    | Arrow of tyFormals : Id list * formals : Ty list * ret : Ty
-    | TyApp of Ty * Ty list
-and GTy =
-    | Ty of Ty
+    | Arrow of formals : Ty list * ret : Ty
+
+type MethodTy =
+    {
+        // TODO: bounded quantification
+        tyFormals : Id list
+        formals : Ty list
+        returnTy : Ty
+    }
 
 type UnaryPrim =
     (* int -> int *)
@@ -61,51 +67,59 @@ type BinaryPrim =
         | PrimXor -> (Ty.Bool, Ty.Bool, Ty.Bool)
 
 [<RequireQualifiedAccess>]
-type SourceExp =
+type Exp =
     | Var of Id
     | LitInt of int32
     | LitBool of bool
-    | Unit
-    | UnOp of prim : UnaryPrim * arg0 : SourceExp
-    | BinOp of prim : BinaryPrim * arg0 : SourceExp * arg1 : SourceExp
-    | Lam of tyFormals : Id list * formals : (Id * Ty) list * body : SourceExp
-    | App of f : SourceExp * tyArgs : Ty list * args : SourceExp list
-    | Tuple of SourceExp list
-    | TupleProj of i : int * exp : SourceExp
-    | EnumMatch of matchee : SourceExp * cases : (MatchPattern * SourceExp) list
-    | If of cond : SourceExp * then_ : SourceExp * else_ : SourceExp
-    | Let of bindings : SourceBinding list * body : SourceExp
+    | UnOp of prim : UnaryPrim * arg0 : Exp
+    | BinOp of prim : BinaryPrim * arg0 : Exp * arg1 : Exp
+    | Lam of formals : (Id * Ty) list * body : Exp
+    | App of f : Exp * tyArgs : Ty list * args : Exp list
+    | Tuple of Exp list
+    | TupleProj of i : int * exp : Exp
+    | EnumMatch of matchee : Exp * cases : (MatchPattern * Exp) list
+    | Let of bindings : SourceBinding list * body : Exp
     | Unreachable
 
 and SourceBinding =
     | Ty of id : Id * ty : Ty
-    | Val of id : Id * exp : SourceExp
+    | Val of id : Id * exp : Exp
 
 and MatchPattern =
     | Ignored
-    | Var of Id
-    | LitInt of int32
-    | LitBool of bool
-    | Unit
-    | Tuple of MatchPattern list
-    | Case of Id * MatchPattern list
-    | Named of MatchPattern * Id
+    | MatchVar of Id
+    | MatchLitInt of int32
+    | MatchLitBool of bool
+    | MatchTuple of MatchPattern list
+    | MatchCase of Id * MatchPattern list
+    | MatchNamed of MatchPattern * Id
 
-type Method = {
-    name : Id
-    tyFormals : Id list
-    formals : (Id * Ty) list
-    body : SourceExp
-}
+type StaticMethod =
+    {
+        name : Id
+        tyFormals : Id list
+        formals : (Id * Ty) list
+        body : Exp
+    }
 
-type EnumCase = {
-    name : Id
-    associatedValues : Ty list
-}
+type EnumCase =
+    {
+        name : Id
+        associatedValues : Ty list
+    }
 
-type Enum = {
-    name : Id
-    tyFormals : Id list
-    cases : EnumCase list
-    methods : Method list
-}
+type Enum =
+    {
+        name : Id
+        tyFormals : Id list
+        cases : EnumCase list
+        staticMethods : StaticMethod list
+    }
+
+type Struct =
+    {
+        name : Id
+        tyFormals : Id list
+        fields : (Id * Ty) list
+        staticMethods : StaticMethod list
+    }
