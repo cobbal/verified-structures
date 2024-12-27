@@ -36,21 +36,6 @@ module TyP =
 module ExpP =
     type P = Parser<Exp>
 
-    // https://docs.swift.org/swift-book/documentation/the-swift-programming-language/summaryofthegrammar/
-    let rec p : P = prefixP .>>. many1 infixP
-    and prefixP : P = opt prefixOpP .>>. postfixP
-    and infixP : P = infixOpP .>>. prefixP
-    and primaryP : P = choice [
-        idP .>>. opt genericArgsP
-        literalP
-        switchP
-        closureP
-        parenthesizedP
-        tupleP
-    ]
-    and switchP : P =
-        tokenSp "switch" >>.
-
     // let rec varP : P = idP |>> Exp.Var
     // and intP : P = pint32 .>> spaces |>> Exp.LitInt
     //
