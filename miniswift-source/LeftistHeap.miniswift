@@ -1,0 +1,43 @@
+;; -*- mode: scheme -*-
+
+(struct public {LeftistHeap T}
+ (where [T : Comparable])
+ (enum private Storage
+  (cases
+   [e]
+   [t Int T {LeftistHeap T} {LeftistHeap T}]))
+
+ (func public (empty -> Self)
+  (e))
+
+ (func public (isEmpty [h : Self] -> Bool)
+  (switch h
+   [(e) => true]
+   [_ => false]))
+
+ (func private (rank [h : Self] -> Int)
+  (switch h
+   [(e) => 0]
+   [(t rank _ _ _) => rank]))
+
+ (func private (makeT [x : T] [a : Self] [b : Self] -> Self)
+  (if (>= (rank a) (rank b))
+   (t (+ (rank b) 1) x a b)
+   (t (+ (rank a) 1) x b a)))
+
+ (func public (merge [h1 : Self] [h2 : Self] -> Self)
+  (switch (tuple h1 h2)
+   [(tuple _ (e)) => h1]
+   [(tuple (e) _) => h2]
+   [(tuple (t _ x a1 b1) (t _ y a2 b2)) =>
+    (if (<= x y)
+     (makeT x a1 (merge b1 h2))
+     (makeT y a2 (merge h1 b2)))]))
+
+ (func public (insert [x : T] [h : Self] -> Self)
+  (merge (t 1 x (e) (e)) h))
+
+ (func public (findAndDeleteMin [heap : Self] -> {Option {Tuple T Self}})
+  (switch heap
+   [(e) => ({Option {Tuple T Self}}.none)]
+   [(t _ x a b) => ({Option {Tuple T Self}}.some (tuple x (merge a b)))])))

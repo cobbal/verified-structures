@@ -4,12 +4,22 @@ type Id = string
 
 [<RequireQualifiedAccess>]
 type Ty =
-    | Var of Id
-    | App of tyName : Id * tyArgs : Ty list
-    | Int
-    | Bool
+    | Named of NamedTy
     | Tuple of Ty list
     | Arrow of formals : Ty list * ret : Ty
+and NamedTy =
+    | Int
+    | Bool
+    | Qual of NamedTy * NamedTy
+    | Id of Id
+    | App of tyName : NamedTy * tyArgs : Ty list
+
+module Ty =
+    let Int = Ty.Named <| NamedTy.Int
+    let Bool = Ty.Named <| NamedTy.Bool
+    let Qual a b = Ty.Named <| NamedTy.Qual (a, b)
+    let Id x = Ty.Named <| NamedTy.Id x
+    let App x args = Ty.Named <| NamedTy.App (x, args)
 
 type MethodTy =
     {
@@ -38,16 +48,15 @@ type BinaryPrim =
     | PrimDiv
     | PrimRem
     (* int * int -> bool *)
-    | PrimLt
     | PrimEq
+    | PrimNe
+    | PrimLt
     | PrimGt
     | PrimLe
-    | PrimNe
     | PrimGe
     (* bool * bool -> bool *)
     | PrimAnd
     | PrimOr
-    | PrimXor
 
     member this.Types : arg0 : Ty * arg1 : Ty * ret : Ty =
         match this with
@@ -68,7 +77,7 @@ type BinaryPrim =
 
 [<RequireQualifiedAccess>]
 type Exp =
-    | Var of Id
+    | Var of NamedTy option * Id
     | LitInt of int32
     | LitBool of bool
     | UnOp of prim : UnaryPrim * arg0 : Exp

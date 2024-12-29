@@ -8,8 +8,8 @@
 
     <ItemGroup>
         <Compile Include="SourceExp.fs" />
-        <Compile Include="SourceParser.fs" />
         <Compile Include="SExpLexer.fs" />
+        <Compile Include="SourceParser.fs" />
         <Compile Include="Program.fs"/>
     </ItemGroup>
 

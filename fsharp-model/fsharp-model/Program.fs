@@ -1,5 +1,11 @@
 ﻿module Program
 
+open FSharpx.IO
 open SExpLexer
+open FSharpx
+open FSharpx.Text
 
-lex "(+ 123456 2 a-thing ((#true)))" |> Seq.iter (printfn "%A")
+let parseFile filename =
+    readFile filename |> List.ofSeq |> Strings.joinLines |> parse filename
+
+parseFile "../miniswift-source/LeftistHeap.miniswift" |> printfn "%A"

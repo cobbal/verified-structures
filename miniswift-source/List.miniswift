@@ -1,0 +1,24 @@
+;; -*- mode: scheme -*-
+
+(enum public <List T>
+ (cases public
+  [empty]
+  [cons T Self])
+
+ (func public (isEmpty [stack : Self] -> Bool)
+  (switch stack
+   [(empty) => true]
+   [_ => false]))
+
+ (func public (unCons [stack : Self] -> <Option <Tuple T Self>>)
+  (switch stack
+   [(empty) => (<Option <Tuple T Self>>.none]]
+   [(cons a d) => (<Option <Tuple T Self>>.some (tuple a d))]))
+
+ (func public (revAppend [l1 : Self] [l2 : Self] -> Self)
+  (switch l1
+   [(empty) => l2]
+   [(cons a d) => (revAppend d (cons a l2))]))
+
+ (func public (rev [l : Self] -> Self)
+  (revAppend l (empty)))
