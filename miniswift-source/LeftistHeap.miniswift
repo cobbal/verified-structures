@@ -1,31 +1,31 @@
 ;; -*- mode: scheme -*-
 
 (struct public {LeftistHeap T}
- (where [T : Comparable])
+ (where T : Comparable)
+ (let private storage : Storage)
  (enum private Storage
-  (cases
-   [e]
-   [t Int T {LeftistHeap T} {LeftistHeap T}]))
+  (case e)
+  (case t Int T {LeftistHeap T} {LeftistHeap T}))
 
- (func public (empty -> Self)
+ (static public func (empty -> Self)
   (e))
 
- (func public (isEmpty [h : Self] -> Bool)
+ (static public func (isEmpty [h : Self] -> Bool)
   (switch h
    [(e) => true]
    [_ => false]))
 
- (func private (rank [h : Self] -> Int)
+ (static private func (rank [h : Self] -> Int)
   (switch h
    [(e) => 0]
    [(t rank _ _ _) => rank]))
 
- (func private (makeT [x : T] [a : Self] [b : Self] -> Self)
+ (static private func (makeT [x : T] [a : Self] [b : Self] -> Self)
   (if (>= (rank a) (rank b))
    (t (+ (rank b) 1) x a b)
    (t (+ (rank a) 1) x b a)))
 
- (func public (merge [h1 : Self] [h2 : Self] -> Self)
+ (static public func (merge [h1 : Self] [h2 : Self] -> Self)
   (switch (tuple h1 h2)
    [(tuple _ (e)) => h1]
    [(tuple (e) _) => h2]
@@ -34,10 +34,16 @@
      (makeT x a1 (merge b1 h2))
      (makeT y a2 (merge h1 b2)))]))
 
- (func public (insert [x : T] [h : Self] -> Self)
+ (static public func (insert [x : T] [h : Self] -> Self)
   (merge (t 1 x (e) (e)) h))
 
- (func public (findAndDeleteMin [heap : Self] -> {Option {Tuple T Self}})
+ ;; This is actually a bad function that produces an invalid heap
+ (static public func ({map U} [f : (-> T U)] [heap : Self] -> {LeftistHeap U})
+  (switch heap
+   [(e) => ({LeftistHeap U}.e)]
+   [(t rank x a b) => ({LeftistHeap U}.t rank (f x) ({map U} f a) ({map U} f b))]))
+
+ (static public func (findAndDeleteMin [heap : Self] -> {Option {Tuple T Self}})
   (switch heap
    [(e) => ({Option {Tuple T Self}}.none)]
    [(t _ x a b) => ({Option {Tuple T Self}}.some (tuple x (merge a b)))])))

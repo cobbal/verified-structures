@@ -7,6 +7,7 @@ type Ty =
     | Named of NamedTy
     | Tuple of Ty list
     | Arrow of formals : Ty list * ret : Ty
+
 and NamedTy =
     | Int
     | Bool
@@ -72,26 +73,27 @@ type BinaryPrim =
         | PrimNe
         | PrimGe -> (Ty.Int, Ty.Int, Ty.Bool)
         | PrimAnd
-        | PrimOr
-        | PrimXor -> (Ty.Bool, Ty.Bool, Ty.Bool)
+        | PrimOr -> (Ty.Bool, Ty.Bool, Ty.Bool)
 
 [<RequireQualifiedAccess>]
 type Exp =
-    | Var of NamedTy option * Id
+    | Var of IdExp
     | LitInt of int32
     | LitBool of bool
     | UnOp of prim : UnaryPrim * arg0 : Exp
     | BinOp of prim : BinaryPrim * arg0 : Exp * arg1 : Exp
     | Lam of formals : (Id * Ty) list * body : Exp
-    | App of f : Exp * tyArgs : Ty list * args : Exp list
     | Tuple of Exp list
-    | TupleProj of i : int * exp : Exp
-    | EnumMatch of matchee : Exp * cases : (MatchPattern * Exp) list
+    | Switch of matchee : Exp * cases : (MatchPattern * Exp) list
     | Let of bindings : SourceBinding list * body : Exp
+    | GenericApp of f : IdExp * tyArgs : Ty list * args : Exp list
+    | App of f : Exp * args : Exp list
     | Unreachable
 
+and IdExp = NamedTy option * Id
+
 and SourceBinding =
-    | Ty of id : Id * ty : Ty
+    // | Ty of id : Id * ty : Ty
     | Val of id : Id * exp : Exp
 
 and MatchPattern =
@@ -100,16 +102,32 @@ and MatchPattern =
     | MatchLitInt of int32
     | MatchLitBool of bool
     | MatchTuple of MatchPattern list
+    | MatchNamed of Id * MatchPattern
     | MatchCase of Id * MatchPattern list
-    | MatchNamed of MatchPattern * Id
+
+type Visibility =
+    | Public
+    | Private
 
 type StaticMethod =
     {
         name : Id
+        visibility : Visibility
         tyFormals : Id list
         formals : (Id * Ty) list
+        retTy : Ty
         body : Exp
     }
+
+type Field =
+    {
+        name : Id
+        visibility : Visibility
+        ty : Ty
+    }
+
+module Field =
+    let mk x v t = { name = x ; visibility = v ; ty = t }
 
 type EnumCase =
     {
@@ -117,18 +135,22 @@ type EnumCase =
         associatedValues : Ty list
     }
 
-type Enum =
-    {
-        name : Id
-        tyFormals : Id list
-        cases : EnumCase list
-        staticMethods : StaticMethod list
-    }
+module EnumCase =
+    let mk x vs = { name = x ; associatedValues = vs }
 
-type Struct =
+type TypeConstraint = Id * Ty
+
+type TypeDefinitionContents =
+    | EnumCases of EnumCase list
+    | StructFields of Field list
+
+type TypeDefinition =
     {
         name : Id
         tyFormals : Id list
-        fields : (Id * Ty) list
+        visibility : Visibility
+        constraints : TypeConstraint list
+        containedTypes : TypeDefinition list
         staticMethods : StaticMethod list
+        contents : TypeDefinitionContents
     }

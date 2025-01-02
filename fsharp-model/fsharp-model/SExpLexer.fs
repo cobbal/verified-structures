@@ -1,6 +1,5 @@
 ﻿module SExpLexer
 
-open FParsec.Internal
 open FSharpx
 open FSharpx.Text
 
