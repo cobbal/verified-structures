@@ -6,12 +6,19 @@ open FSharpx
 open FSharpx.Text
 
 let parseFile filename =
-    readFile filename
-    |> List.ofSeq
-    |> Strings.joinLines
-    |> parse filename
-    |>! printfn "%A"
+    let sexp =
+        readFile filename
+        |> List.ofSeq
+        |> Strings.joinLines
+        |> SExp.parse filename
+    sexp
+    |>! printfn "sexp: %A"
     |> SourceParser.topLevelP
-    |> Result.mapError _.Value
+    |> Threesult.mapRecoverable _.Value
+    |>! printfn "sourceexp: %A"
+    |> Threesult.unwrap
+    |> List.map SourceParser.TypeDefinitionP.print
+    |>! List.iter (printfn "%A")
+    |>! List.iter2 SExp.assertEq sexp
 
-parseFile "../miniswift-source/LeftistHeap.miniswift" |> printfn "%A"
+parseFile "../miniswift-source/LeftistHeap.miniswift" |> ignore

@@ -2,10 +2,10 @@
 
 (struct public {LeftistHeap T}
  (where T : Comparable)
- (let private storage : Storage)
  (enum private Storage
   (case e)
   (case t Int T {LeftistHeap T} {LeftistHeap T}))
+ (let private storage : Storage)
 
  (static public func (empty -> Self)
   (e))
@@ -38,10 +38,10 @@
   (merge (t 1 x (e) (e)) h))
 
  ;; This is actually a bad function that produces an invalid heap
- (static public func ({map U} [f : (-> T U)] [heap : Self] -> {LeftistHeap U})
+ (static public func ({map U} [f : {-> T U}] [heap : Self] -> {LeftistHeap U})
   (switch heap
    [(e) => ({LeftistHeap U}.e)]
-   [(t rank x a b) => ({LeftistHeap U}.t rank (f x) ({map U} f a) ({map U} f b))]))
+   [(t rank x a b) => ({LeftistHeap U}.t rank (f x) (map {U} f a) (map {U} f b))]))
 
  (static public func (findAndDeleteMin [heap : Self] -> {Option {Tuple T Self}})
   (switch heap

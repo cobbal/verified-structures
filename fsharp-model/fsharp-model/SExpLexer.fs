@@ -201,7 +201,7 @@ type SExp =
     | SParList of SExp list
     | SSqrList of SExp list
     | SCurlList of SExp list
-    with
+
     member this.DisplayText =
         match this with
         | SInt i -> string i
@@ -213,26 +213,38 @@ type SExp =
         | SSqrList l -> $"[%s{l |> List.map string |> Strings.joinWords}]"
         | SCurlList l -> $"{{%s{l |> List.map string |> Strings.joinWords}}}"
 
-let parse filename (input : char seq) : SExp list =
-    let rec parse1 =
-        function
-        | S0Int i -> SInt i
-        | S0Hash s -> SHash s
-        | S0Op s -> SOp s
-        | S0Id s -> SId s
-        | S0Dot -> failwith "Unexpected '.'"
-        | S0ParList l -> SParList (parseList l)
-        | S0SqrList l -> SSqrList (parseList l)
-        | S0CurlList l -> SCurlList (parseList l)
+module SExp =
+    let parse filename (input : char seq) : SExp list =
+        let rec parse1 =
+            function
+            | S0Int i -> SInt i
+            | S0Hash s -> SHash s
+            | S0Op s -> SOp s
+            | S0Id s -> SId s
+            | S0Dot -> failwith "Unexpected '.'"
+            | S0ParList l -> SParList (parseList l)
+            | S0SqrList l -> SSqrList (parseList l)
+            | S0CurlList l -> SCurlList (parseList l)
 
-    and parseList =
-        function
-        | [] -> []
-        | a :: S0Dot :: rest ->
-            match parseList rest with
-            | SDotList l :: xs -> SDotList (parse1 a :: l) :: xs
-            | x :: xs -> SDotList [parse1 a; x] :: xs
-            | [] -> failwith "Trailing '.' found"
-        | a :: rest -> parse1 a :: parseList rest
+        and parseList =
+            function
+            | [] -> []
+            | a :: S0Dot :: rest ->
+                match parseList rest with
+                | SDotList l :: xs -> SDotList (parse1 a :: l) :: xs
+                | x :: xs -> SDotList [ parse1 a ; x ] :: xs
+                | [] -> failwith "Trailing '.' found"
+            | a :: rest -> parse1 a :: parseList rest
 
-    lex filename input |> parse0 |> parseList
+        lex filename input |> parse0 |> parseList
+
+    let rec assertEq s0 s1 =
+        let mismatch () =
+            failwith $"%A{s0} does not equal %A{s1}"
+
+        match s0, s1 with
+        | _ when s0 = s1 -> ()
+        | SParList l0, SParList l1
+        | SSqrList l0, SSqrList l1
+        | SCurlList l0, SCurlList l1 when List.length l0 = List.length l1 -> List.iter2 assertEq l0 l1
+        | _ -> mismatch ()

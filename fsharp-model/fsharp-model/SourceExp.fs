@@ -16,11 +16,11 @@ and NamedTy =
     | App of tyName : NamedTy * tyArgs : Ty list
 
 module Ty =
-    let Int = Ty.Named <| NamedTy.Int
-    let Bool = Ty.Named <| NamedTy.Bool
-    let Qual a b = Ty.Named <| NamedTy.Qual (a, b)
-    let Id x = Ty.Named <| NamedTy.Id x
-    let App x args = Ty.Named <| NamedTy.App (x, args)
+    let int = Ty.Named <| NamedTy.Int
+    let bool = Ty.Named <| NamedTy.Bool
+    let qual a b = Ty.Named <| NamedTy.Qual (a, b)
+    let id x = Ty.Named <| NamedTy.Id x
+    let app x args = Ty.Named <| NamedTy.App (x, args)
 
 type MethodTy =
     {
@@ -38,8 +38,8 @@ type UnaryPrim =
 
     member this.Types : arg0 : Ty * ret : Ty =
         match this with
-        | PrimNeg -> (Ty.Int, Ty.Int)
-        | PrimNot -> (Ty.Bool, Ty.Bool)
+        | PrimNeg -> (Ty.int, Ty.int)
+        | PrimNot -> (Ty.bool, Ty.bool)
 
 type BinaryPrim =
     (* int * int -> int *)
@@ -65,15 +65,15 @@ type BinaryPrim =
         | PrimSub
         | PrimMul
         | PrimDiv
-        | PrimRem -> (Ty.Int, Ty.Int, Ty.Int)
+        | PrimRem -> (Ty.int, Ty.int, Ty.int)
         | PrimLt
         | PrimEq
         | PrimGt
         | PrimLe
         | PrimNe
-        | PrimGe -> (Ty.Int, Ty.Int, Ty.Bool)
+        | PrimGe -> (Ty.int, Ty.int, Ty.bool)
         | PrimAnd
-        | PrimOr -> (Ty.Bool, Ty.Bool, Ty.Bool)
+        | PrimOr -> (Ty.bool, Ty.bool, Ty.bool)
 
 [<RequireQualifiedAccess>]
 type Exp =
