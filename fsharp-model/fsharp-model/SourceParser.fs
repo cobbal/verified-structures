@@ -90,11 +90,11 @@ module rec ExpP =
         | SDotList (List.Snoc (t, SId x)) -> tuple2 <!> (Some <!> TyP.namedP (SDotList t)) <*> Ok x
         | s -> errExpected "<variable>" s
 
-    let varP : Parser<Exp> = idExpP >> map Exp.Var
+    let varP : Parser<UExp> = idExpP >> map UExp.var
 
-    let litIntP : Parser<Exp> =
+    let litIntP : Parser<UExp> =
         function
-        | SInt i -> Ok (Exp.LitInt i)
+        | SInt i -> Ok (UExp.litInt i)
         | s -> errExpected "<int>" s
 
     let (|Bool|_|) =
@@ -103,9 +103,9 @@ module rec ExpP =
         | SHash "false" -> Some false
         | _ -> None
 
-    let litBoolP : Parser<Exp> =
+    let litBoolP : Parser<UExp> =
         function
-        | Bool b -> Ok (Exp.LitBool b)
+        | Bool b -> Ok (UExp.litBool b)
         | s -> errExpected "<bool>" s
 
     let (|UnPrim|_|) : Matcher<UnaryPrim> =
@@ -119,9 +119,9 @@ module rec ExpP =
         | PrimNeg -> SOp "-"
         | PrimNot -> SOp "~"
 
-    let unOpP : Parser<Exp> =
+    let unOpP : Parser<UExp> =
         function
-        | SParList [ UnPrim prim ; x ] -> Exp.UnOp <!!> (Ok prim, parse x)
+        | SParList [ UnPrim prim ; x ] -> UExp.unOp <!> Ok prim <*> parse x
         | s -> errExpected "(<UnPrim> <expr>)" s
 
     let (|BinPrim|_|) : Matcher<BinaryPrim> =
@@ -141,9 +141,9 @@ module rec ExpP =
         | SOp "||" -> Some PrimOr
         | _ -> None
 
-    let binOpP : Parser<Exp> =
+    let binOpP : Parser<UExp> =
         function
-        | SParList [ BinPrim prim ; x ; y ] -> Exp.BinOp <!!!> (Ok prim, parse x, parse y)
+        | SParList [ BinPrim prim ; x ; y ] -> UExp.binOp <!> Ok prim <*> parse x <*> parse y
         | s -> errExpected "(<BinPrim> <expr> <expr>)" s
 
     let printBinaryPrim : Printer<BinaryPrim> =
@@ -170,14 +170,14 @@ module rec ExpP =
         )
         >> sequence
 
-    let lamP : Parser<Exp> =
+    let lamP : Parser<UExp> =
         function
-        | SParList [ SId "lambda" ; SParList formals ; body ] -> Exp.Lam <!!> (formalList formals, parse body)
+        | SParList [ SId "lambda" ; SParList formals ; body ] -> UExp.lam <!> formalList formals <*> parse body
         | s -> errExpected "<lambda>" s
 
-    let tupleP : Parser<Exp> =
+    let tupleP : Parser<UExp> =
         function
-        | SParList (SId "tuple" :: args) -> Exp.Tuple <!> sequence (List.map parse args)
+        | SParList (SId "tuple" :: args) -> UExp.tuple <!> sequence (List.map parse args)
         | s -> errExpected "<tuple creation>" s
 
     let patternP : Parser<MatchPattern> =
@@ -191,46 +191,47 @@ module rec ExpP =
         | SParList (SId caseName :: rest) -> MatchCase <!!> (Ok caseName, sequence (List.map patternP rest))
         | s -> errExpected "<pattern>" s
 
-    let caseP : Parser<MatchPattern * Exp> =
+    let caseP : Parser<MatchPattern * UExp> =
         function
         | SSqrList [ pattern ; SOp "=>" ; exp ] -> tuple2 <!> patternP pattern <*> parse exp
         | s -> errExpected "<switch case>" s
 
-    let switchP : Parser<Exp> =
+    let switchP : Parser<UExp> =
         function
         | SParList (SId "switch" :: matchee :: cases) ->
-            Exp.Switch <!!> (parse matchee, sequence (List.map caseP cases))
+            UExp.switch <!> parse matchee <*> sequence (List.map caseP cases)
         | s -> errExpected "<switch expression>" s
 
-    let bindingP : Parser<SourceBinding> =
+    let bindingP : Parser<USourceBinding> =
         function
-        | SSqrList [ SId x ; SOp "=" ; v ] -> SourceBinding.Val <!!> (Ok x, parse v)
+        | SSqrList [ SId x ; SOp "=" ; v ] -> USourceBinding.Val <!!> (Ok x, parse v)
         | s -> errExpected "[<id> <exp>]" s
 
-    let letP : Parser<Exp> =
+    let letP : Parser<UExp> =
         function
         | SParList [ SId "let" ; SParList bindings ; body ] ->
-            Exp.Let <!!> (sequence (List.map bindingP bindings), parse body)
+            UExp.let_ <!> sequence (List.map bindingP bindings) <*> parse body
         | s -> errExpected "(let <bindings> <body>)" s
 
-    let genericAppP : Parser<Exp> =
+    let genericAppP : Parser<UExp> =
         function
         | SParList (Matcher idExpP fn :: SCurlList genericArgs :: args) ->
-            Exp.GenericApp
-            <!!!> (Ok fn, sequence (List.map TyP.parse genericArgs), sequence (List.map parse args))
+            UExp.genericApp <!> Ok fn
+            <*> sequence (List.map TyP.parse genericArgs)
+            <*> sequence (List.map parse args)
         | s -> errExpected "<generic function application>" s
 
-    let appP : Parser<Exp> =
+    let appP : Parser<UExp> =
         function
-        | SParList (fn :: args) -> Exp.App <!!> (parse fn, sequence (List.map parse args))
+        | SParList (fn :: args) -> UExp.app <!> parse fn <*> sequence (List.map parse args)
         | s -> errExpected "<function application>" s
 
-    let unreachableP : Parser<Exp> =
+    let unreachableP : Parser<UExp> =
         function
-        | SHash "unreachable" -> Ok Exp.Unreachable
+        | SHash "unreachable" -> Ok UExp.unreachable
         | s -> errExpected "#unreachable" s
 
-    let parse : Parser<Exp> =
+    let parse : Parser<UExp> =
         varP
         <||> litIntP
         <||> litBoolP
@@ -256,39 +257,41 @@ module rec ExpP =
             | SDotList l -> SDotList (l @ [ SId x ])
             | t -> SDotList [ t ; SId x ]
 
-    let print : Printer<Exp> =
-        function
-        | Exp.Var v -> printIdExp v
-        | Exp.LitInt i -> SInt i
-        | Exp.LitBool true -> SHash "true"
-        | Exp.LitBool false -> SHash "false"
-        | Exp.UnOp (p, e) -> SParList [ printUnaryPrim p ; print e ]
-        | Exp.BinOp (p, e0, e1) -> SParList [ printBinaryPrim p ; print e0 ; print e1 ]
-        | Exp.Lam (formals, body) -> SParList [ SId "lambda" ; SParList (List.map printFormal formals) ; print body ]
-        | Exp.Tuple exps -> SParList (SId "tuple" :: List.map print exps)
-        | Exp.Switch (matchee, cases) ->
-            let rec printPat =
-                function
-                | Ignored -> SId "_"
-                | MatchVar x -> SId x
-                | MatchLitInt i -> SInt i
-                | MatchLitBool true -> SHash "true"
-                | MatchLitBool false -> SHash "false"
-                | MatchTuple pats -> SParList (SId "tuple" :: List.map printPat pats)
-                | MatchNamed (var, pat) -> SParList [ SId "name" ; SId var ; printPat pat ]
-                | MatchCase (caseName, pats) -> SParList (SId caseName :: List.map printPat pats)
+    let print : Printer<TExp<'a>> =
+        fun (e, _) ->
+            match e with
+            | Exp.Var v -> printIdExp v
+            | Exp.LitInt i -> SInt i
+            | Exp.LitBool true -> SHash "true"
+            | Exp.LitBool false -> SHash "false"
+            | Exp.UnOp (p, e) -> SParList [ printUnaryPrim p ; print e ]
+            | Exp.BinOp (p, e0, e1) -> SParList [ printBinaryPrim p ; print e0 ; print e1 ]
+            | Exp.Lam (formals, body) ->
+                SParList [ SId "lambda" ; SParList (List.map printFormal formals) ; print body ]
+            | Exp.Tuple exps -> SParList (SId "tuple" :: List.map print exps)
+            | Exp.Switch (matchee, cases) ->
+                let rec printPat =
+                    function
+                    | Ignored -> SId "_"
+                    | MatchVar x -> SId x
+                    | MatchLitInt i -> SInt i
+                    | MatchLitBool true -> SHash "true"
+                    | MatchLitBool false -> SHash "false"
+                    | MatchTuple pats -> SParList (SId "tuple" :: List.map printPat pats)
+                    | MatchNamed (var, pat) -> SParList [ SId "name" ; SId var ; printPat pat ]
+                    | MatchCase (caseName, pats) -> SParList (SId caseName :: List.map printPat pats)
 
-            let printCase (pat, body) =
-                SSqrList [ printPat pat ; SOp "=>" ; print body ]
+                let printCase (pat, body) =
+                    SSqrList [ printPat pat ; SOp "=>" ; print body ]
 
-            SParList (SId "switch" :: print matchee :: List.map printCase cases)
-        | Exp.Let (bindings, body) ->
-            let printBinding (SourceBinding.Val (x, e)) = SSqrList [ SId x ; SOp "=" ; print e ]
-            SParList [ SId "let" ; SParList (List.map printBinding bindings) ; print body ]
-        | Exp.GenericApp (fn, tyArgs, args) ->
-            SParList (printIdExp fn :: SCurlList (List.map TyP.print tyArgs) :: List.map print args)
-        | Exp.App (fn, args) -> SParList (print fn :: List.map print args)
-        | Exp.Unreachable -> SHash "unreachable"
+                SParList (SId "switch" :: print matchee :: List.map printCase cases)
+            | Exp.Let (bindings, body) ->
+                let printBinding (SourceBinding.Val (x, e)) = SSqrList [ SId x ; SOp "=" ; print e ]
+                SParList [ SId "let" ; SParList (List.map printBinding bindings) ; print body ]
+            | Exp.GenericApp (fn, tyArgs, args) ->
+                SParList (printIdExp fn :: SCurlList (List.map TyP.print tyArgs) :: List.map print args)
+            | Exp.App (fn, args) -> SParList (print fn :: List.map print args)
+            | Exp.Unreachable -> SHash "unreachable"
 
 module rec TypeDefinitionP =
     let visibilityP : Parser<Visibility> =
@@ -306,8 +309,8 @@ module rec TypeDefinitionP =
         {
             tyConstraints : TypeConstraint list
             contents : 'Contents list
-            staticMethods : StaticMethod list
-            containedTypes : TypeDefinition list
+            staticMethods : UStaticMethod list
+            containedTypes : UTypeDefinition list
         }
 
     module Deflets =
@@ -404,7 +407,7 @@ module rec TypeDefinitionP =
         else
             SCurlList (SId name :: List.map SId tyFormals)
 
-    let methodPrint : Printer<StaticMethod> =
+    let methodPrint : Printer<StaticMethod<'a>> =
         fun m ->
             SParList
                 [
@@ -424,7 +427,7 @@ module rec TypeDefinitionP =
         (contentP : Parser<'C>)
         (eject : 'C list -> TypeDefinitionContents)
         (deflets : SExp list)
-        : PResult<TypeDefinition>
+        : PResult<UTypeDefinition>
         =
         threesult {
             let! vis = visibilityP vis
@@ -447,23 +450,23 @@ module rec TypeDefinitionP =
                 }
         }
 
-    let structP : Parser<TypeDefinition> =
+    let structP : Parser<UTypeDefinition> =
         function
         | SParList (SId "struct" :: vis :: name :: deflets) -> defHelperP vis name fieldP StructFields deflets
         | s -> errExpected "(struct public|private ...)" s
 
-    let enumP : Parser<TypeDefinition> =
+    let enumP : Parser<UTypeDefinition> =
         function
         | SParList (SId "enum" :: vis :: name :: deflets) -> defHelperP vis name caseP EnumCases deflets
         | s -> errExpected "(struct public|private ...)" s
 
-    let parse : Parser<TypeDefinition> =
+    let parse : Parser<UTypeDefinition> =
         function
         | SParList (SId "struct" :: _) as s -> structP s
         | SParList (SId "enum" :: _) as s -> enumP s
         | s -> errExpected "(struct ...) | (enum ...)" s
 
-    let print : Printer<TypeDefinition> =
+    let print : Printer<TypeDefinition<'a>> =
         fun d ->
             let form, contents =
                 match d.contents with
@@ -499,5 +502,5 @@ module rec TypeDefinitionP =
             |> List.ofSeq
             |> SParList
 
-let topLevelP (ss : SExp list) : PResult<TypeDefinition list> =
+let topLevelP (ss : SExp list) : PResult<UTypeDefinition list> =
     sequence (List.map TypeDefinitionP.parse ss)
